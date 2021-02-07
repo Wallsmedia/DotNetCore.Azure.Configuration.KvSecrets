@@ -12,10 +12,10 @@ which package allows storing configuration values using Azure Key Vault Secrets.
 
 ### Install the package
 
-Install the package with [NuGet][nuget]:
+Install the package with [DotNetCore.Azure.Configuration.KvSecrets](https://www.nuget.org/packages/DotNetCore.Azure.Configuration.KvSecrets):
 
 ```Powershell
-    dotnet add package AspNetCore.Azure.Configuration.KvSecrets
+    dotnet add package DotNetCore.Azure.Configuration.KvSecrets
 ```
 
 ### Prerequisites
