@@ -62,7 +62,7 @@ To load initialize configuration from Azure Key Vault secrets call the `AddAzure
             var config = configBuilder.Build();
 
             string KeyVaultUrl = config[nameof(KeyVaultUrl)];
-            List<string> UploadKeyList = config.GetSection(nameof(UploadKeyList)).Get<List<string>>();
+            List<string> VaultSecrets = config.GetSection(nameof(UploadKeyList)).Get<List<string>>();
             string ConfigurationSectionPrefix = config[nameof(ConfigurationSectionPrefix)];
 
             var credential = new AzureCliCredential();

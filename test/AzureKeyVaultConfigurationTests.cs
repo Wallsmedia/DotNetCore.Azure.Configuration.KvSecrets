@@ -172,7 +172,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 Client = client.Object,
-                UploadKeyList = new List<string> { "Secret1" }
+                VaultSecrets = new List<string> { "Secret1" }
             };
 
             // Act
@@ -205,7 +205,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 Client = client.Object,
-                UploadAndMapKeys = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
+                VaultSecretMap = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
             };
 
             // Act
@@ -693,7 +693,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 Client = Mock.Of<SecretClient>(),
-                UploadAndMapKeys = null
+                VaultSecrets = null
             };
 
             Assert.NotNull(new AzureKvConfigurationProvider(options));
@@ -705,7 +705,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 Client = Mock.Of<SecretClient>(),
-                UploadKeyList = null
+                VaultSecrets = null
             };
 
             Assert.NotNull(new AzureKvConfigurationProvider(options));
