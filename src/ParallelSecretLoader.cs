@@ -23,10 +23,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
 
         public void AddSecretToLoad(string secretName)
         {
-            _tasks.Add(GetVaultSecret(secretName));
+            _tasks.Add(GetVaultSecretAsync(secretName));
         }
 
-        private async Task<Response<KeyVaultSecret>> GetVaultSecret(string secretName)
+        private async Task<Response<KeyVaultSecret>> GetVaultSecretAsync(string secretName)
         {
             await _semaphore.WaitAsync().ConfigureAwait(false);
             try
