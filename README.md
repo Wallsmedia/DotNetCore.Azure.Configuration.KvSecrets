@@ -16,6 +16,10 @@ Install the package with [DotNetCore.Azure.Configuration.KvSecrets](https://www.
 
 **Version 6.x.x** : **supports only **Microsoft.AspNetCore.App** 6.0-***
 
+**Version 5.x.x** : **supports only **Microsoft.AspNetCore.App** 5.0-***
+
+**Version 3.1.x** : **supports only **Microsoft.AspNetCore.App** 3.1.0-***
+
 ```Powershell
     dotnet add package DotNetCore.Azure.Configuration.KvSecrets
 ```
