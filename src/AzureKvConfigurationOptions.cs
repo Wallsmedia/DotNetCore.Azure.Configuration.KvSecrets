@@ -12,6 +12,8 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
     /// </summary>
     public class AzureKvConfigurationOptions
     {
+        public const string ConfigurationSectionPrefixDefault = "secrets";
+
         /// <summary>
         /// Creates a new instance of <see cref="AzureKvConfigurationOptions"/>.
         /// </summary>
@@ -43,7 +45,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         /// <summary>
         /// Gets or sets a prefix for configuration section.
         /// </summary>
-        public string ConfigurationSectionPrefix { get; set; }
+        public string ConfigurationSectionPrefix { get; set; } = ConfigurationSectionPrefixDefault;
 
         /// <summary>
         /// Gets or sets the timespan to wait between attempts at polling the Azure Key Vault for changes. <code>null</code> to disable reloading.
