@@ -26,6 +26,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
 
         private bool _fullLoad;
         private readonly CancellationTokenSource _cancellationToken;
+        private readonly AzureKvConfigurationOptions _options;
 
         /// <summary>
         /// Creates a new instance of <see cref="AzureKvConfigurationProvider"/>.
@@ -46,13 +47,38 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
 
             _fullLoad = _uploadKeyList.Count == 0 && _uploadAndMapKeys.Count == 0;
             _cancellationToken = new CancellationTokenSource();
+            _options = options;
         }
 
         #region IConfigurationProvider
         /// <summary>
         /// Load secrets into this provider.
         /// </summary>
-        public override void Load() => LoadAsync().GetAwaiter().GetResult();
+        public override void Load()
+        {
+            bool loaded = false;
+            int tolerance = _options.AzureErrorReloadTimes;
+            do
+            {
+
+                try
+                {
+                    LoadAsync().GetAwaiter().GetResult();
+                    loaded = true;
+
+                }
+                catch (Exception /*ex*/)
+                {
+                    Thread.Sleep(TimeSpan.FromSeconds(_options.AzureErrorReloadDelay));
+                    loaded = false;
+                    if (tolerance-- <= 0)
+                    {
+                        throw;
+                    }
+                }
+
+            } while (!loaded);
+        }
 
         #endregion
 

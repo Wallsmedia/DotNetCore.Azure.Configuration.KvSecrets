@@ -56,6 +56,15 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         {
             return secretName.Replace("--", ConfigurationPath.KeyDelimiter);
         }
+        /// <summary>
+        /// Clients timeout connections - number of repeat times
+        /// </summary>
+        public int AzureErrorReloadTimes { get; set; } = 12;
+
+        /// <summary>
+        /// Clients timeout connections - delay before repiating 
+        /// </summary>
+        public int AzureErrorReloadDelay { get; set; } = 5;
     }
 }
 
