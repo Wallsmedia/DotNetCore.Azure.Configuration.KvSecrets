@@ -68,19 +68,19 @@ To load initialize configuration from Azure Key Vault secrets call the `AddAzure
             var config = configBuilder.Build();
 
             string KeyVaultUrl = config[nameof(KeyVaultUrl)];
-            List<string> VaultSecrets = config.GetSection(nameof(UploadKeyList)).Get<List<string>>();
+            List<string> VaultSecrets = config.GetSection(nameof(VaultSecrets)).Get<List<string>>();
             string ConfigurationSectionPrefix = config[nameof(ConfigurationSectionPrefix)];
 
-            var credential = new AzureCliCredential();
-            //var credential = new DefaultAzureCredential();
-            var client = new SecretClient(vaultUri: new Uri(KeyVaultUrl), credential);
             var options = new AzureKvConfigurationOptions()
             {
                 ConfigurationSectionPrefix = ConfigurationSectionPrefix,
-                UploadKeyList = UploadKeyList
+                VaultSecrets = VaultSecrets
             };
 
-            configurationBuilder.AddAzureKeyVault(client, options);
+            var credential = new AzureCliCredential();
+            //var credential = new DefaultAzureCredential();
+
+            configurationBuilder.AddAzureKeyVault(new Uri(KeyVaultUrl), credential, options);
         }
 ```
 
@@ -112,13 +112,9 @@ For more information see the [Code of Conduct FAQ][coc_faq]
 or contact [opencode@microsoft.com][coc_contact] with any
 additional questions or comments.
 
-![Impressions](https://azure-sdk-impressions.azurewebsites.net/api/impressions/azure-sdk-for-net%2Fsdk%2Fextensions%2FAzure.Extensions.AspNetCore.Configuration.Secrets%2FREADME.png)
 
 <!-- LINKS -->
 [source]: https://github.com/Azure/azure-sdk-for-net/tree/master/sdk/extensions/Azure.Extensions.AspNetCore.Configuration.Secrets/src
-[package]: https://www.nuget.org/packages/Azure.Extensions.AspNetCore.Configuration.Secrets/
-[docs]: https://docs.microsoft.com/dotnet/api/Azure.Extensions.AspNetCore.Configuration.Secrets
-[nuget]: https://www.nuget.org/packages/Azure.Extensions.AspNetCore.Configuration.Secrets
 [keyvault_create_cli]: https://docs.microsoft.com/azure/key-vault/quick-create-cli#create-a-key-vault
 [keyvault_create_portal]: https://docs.microsoft.com/azure/key-vault/quick-create-portal#create-a-vault
 [keyvault_create_ps]: https://docs.microsoft.com/azure/key-vault/quick-create-powershell#create-a-key-vault
