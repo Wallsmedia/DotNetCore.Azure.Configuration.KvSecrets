@@ -129,6 +129,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
             };
 
@@ -171,6 +172,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 VaultSecrets = new List<string> { "Secret1" }
             };
@@ -204,6 +206,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 VaultSecretMap = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
             };
@@ -238,6 +241,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object
             };
 
@@ -270,6 +274,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object
             };
 
@@ -308,6 +313,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
@@ -359,6 +365,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
@@ -404,6 +411,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
@@ -456,6 +464,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
@@ -508,6 +517,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
@@ -562,6 +572,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object
             };
 
@@ -600,6 +611,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             );
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object
             };
 
@@ -641,6 +653,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
+                ConfigurationSectionPrefix = null,
                 Client = client.Object
             };
 
