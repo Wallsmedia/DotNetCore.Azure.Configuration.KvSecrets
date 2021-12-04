@@ -1,10 +1,8 @@
-# Azure Key Vault Secrets configuration provider for Microsoft.Extensions.Configuration
+## DotNetCore Azure Configuration KeyVault Secrets
 
-The AspNetCore.Azure.Configuration.KvSecrets based on [Azure.Extensions.AspNetCore.Configuration.Secrets][source] 
-which package allows storing configuration values using Azure Key Vault Secrets.
-
+The DotNetCore.Azure.Configuration.KvSecrets based on [Azure.Extensions.AspNetCore.Configuration.Secrets][source].
 ## Improvements
-
+- Allows storing configuration values using Azure Key Vault Secrets.
 - Allows to load secrets by list and map them into new names.
 - Allows to load  secrets into the configuration section.
 
@@ -38,9 +36,12 @@ az keyvault create --name MyVault --resource-group MyResourceGroup --location we
 az keyvault secret set --vault-name MyVault --name MySecret --value "hVFkk965BuUv"
 ```
 
-## Examples
+## .NetCore Microservice Examples
 
-To load initialize configuration from Azure Key Vault secrets call the `AddAzureKeyVault` on `ConfigurationBuilder`:
+Can be used in conjunction with [DotNetCore Azure Configuration KeyVault Certificates](https://github.com/Wallsmedia/DotNetCore.Azure.Configuration.KvCertificates).
+
+
+Add configuration provider with WebHostBuiler initialization.
 
 **Program.cs**
 
@@ -53,6 +54,7 @@ To load initialize configuration from Azure Key Vault secrets call the `AddAzure
                     webBuilder.UseStartup<Startup>();
                 });
 ```
+
 
 **Startup.cs**
 
@@ -67,50 +69,129 @@ To load initialize configuration from Azure Key Vault secrets call the `AddAzure
 
             var config = configBuilder.Build();
 
-            string KeyVaultUrl = config[nameof(KeyVaultUrl)];
-            List<string> VaultSecrets = config.GetSection(nameof(VaultSecrets)).Get<List<string>>();
-            string ConfigurationSectionPrefix = config[nameof(ConfigurationSectionPrefix)];
+            var options = configuration.GetSection(nameof(AzureKvConfigurationOptions))
+                               .Get<AzureKvConfigurationOptions>();
 
-            var options = new AzureKvConfigurationOptions()
-            {
-                ConfigurationSectionPrefix = ConfigurationSectionPrefix,
-                VaultSecrets = VaultSecrets
-            };
-
-            var credential = new AzureCliCredential();
-            //var credential = new DefaultAzureCredential();
-
-            configurationBuilder.AddAzureKeyVault(new Uri(KeyVaultUrl), credential, options);
+            var credential = new DefaultAzureCredential(
+                new DefaultAzureCredentialOptions()
+                {
+                    ExcludeSharedTokenCacheCredential = true,
+                    ExcludeVisualStudioCodeCredential = true,
+                    ExcludeVisualStudioCredential = true,
+                    ExcludeInteractiveBrowserCredential = true
+                });
+          
+            // Adds Azure Key Valt configuration provider.
+            configurationBuilder.AddAzureKeyVault(credential, options);
+           
         }
 ```
+
 
 **appsettings.json**
 
 ```JSON
-
+"AzureKvConfigurationOptions": {
   "ConfigurationSectionPrefix": "secret",
-  "KeyVaultUrl": "https://secrets128654s235.vault.azure.net/",
-  "VaultSecrets": [ "FuseEval--Demo8", "LoadInMess", "RealSecretForVault" ]
-
+  "VaultUri": "https://secrets128654s235.vault.azure.net/",
+  "VaultSecrets": [ 
+    "service-bus-Developement-connection",
+    "sql-Developement-password",
+    "sql-Developement-user"
+    "service-bus-Production-connection",
+    "sql-Production-password",
+    "sql-Production-user" ]
+    }
 ```
 
 The [Azure Identity library][identity] provides easy Azure Active Directory support for authentication.
 
-## Next steps
-
 Read more about [configuration in ASP.NET Core][aspnetcore_configuration_doc].
 
-## Contributing
+## Example with DotNetCore Configuration Templates
 
-This project welcomes contributions and suggestions.  Most contributions require
-you to agree to a Contributor License Agreement (CLA) declaring that you have
-the right to, and actually do, grant us the rights to use your contribution. For
-details, visit [cla.microsoft.com][cla].
 
-This project has adopted the [Microsoft Open Source Code of Conduct][coc].
-For more information see the [Code of Conduct FAQ][coc_faq]
-or contact [opencode@microsoft.com][coc_contact] with any
-additional questions or comments.
+Use [DotNetCore Configuration Templates](https://github.com/Wallsmedia/DotNetCore.Configuration.Formatter) 
+to inject secrets into Microservice configuration.
+
+Add to project nuget package [DotNetCore.Configuration.Formatter](https://www.nuget.org/packages/DotNetCore.Configuration.Formatter/).
+
+
+
+##### Environment Variables set to :
+
+```
+DOTNET_RUNNING_IN_CONTAINER=true
+ASPNETCORE_ENVIRONMENT=Development
+...
+host_environmet=datacenter
+```
+
+
+##### Microservice has the ApplicationConfiguration.cs
+
+``` CSharp
+
+public class ApplicationConfiguration 
+{
+     public bool IsDocker {get; set;}
+     public string RunLocation {get; set;}
+     public string AppEnvironment {get; set;}
+     public string BusConnection {get; set;}
+     public string DbUser {get; set;}
+     public string DbPassword {get; set;}
+}
+```
+
+##### Microservice has the following appsettings.json:
+
+``` JSON 
+{
+"AzureKvConfigurationOptions": {
+  "ConfigurationSectionPrefix": "secret",
+  "VaultUri": "https://secrets128654s235.vault.azure.net/",
+  "VaultSecrets": [ 
+    "service-bus-Development-connection",
+    "sql-Development-password",
+    "sql-Development-user",
+    "service-bus-Production-connection",
+    "sql-Production-password",
+    "sql-Production-user" ]
+    }
+
+  ApplicationConfiguration:{
+     "IsDocker": "{DOTNET_RUNNING_IN_CONTAINER??false}",
+     "RunLocation":"{host_environmet??local}",
+     "AppEnvironment":"{ENVIRONMENT}",
+     "BusConnection":"{secret:service-bus-{ENVIRONMENT}-connection}",
+     "DbPassword":"{secret:sql-{ENVIRONMENT}-password}",
+     "DbUser":"{secret:sql-{ENVIRONMENT}-user}"
+  }
+}
+```
+
+##### Microservice the Startup.cs
+
+
+``` CSharp
+
+     var applicationConfig = Configuration.UseFormater()
+     .GetSection(nameof(ApplicationConfiguration))
+     .Get<ApplicationConfiguration>();
+  ```
+   
+
+
+or with **shorthand** 
+
+``` CSharp
+
+     var applicationConfig = Configuration.GetTypeNameFormatted<ApplicationConfiguration>();
+
+```
+
+
+
 
 
 <!-- LINKS -->
