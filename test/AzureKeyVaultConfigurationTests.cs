@@ -96,12 +96,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
-                Client = client.Object,
                 ConfigurationSectionPrefix = "secrets"
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -130,11 +129,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -173,12 +171,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 VaultSecrets = new List<string> { "Secret1" }
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -207,12 +204,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 VaultSecretMap = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -241,12 +237,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
-                ConfigurationSectionPrefix = null,
-                Client = client.Object
+                ConfigurationSectionPrefix = null
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -274,12 +269,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
 
             var options = new AzureKvConfigurationOptions
             {
-                ConfigurationSectionPrefix = null,
-                Client = client.Object
+                ConfigurationSectionPrefix = null
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -314,11 +308,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
             // Act & Assert
-            using (var provider = new ReloadControlKeyVaultProvider(options))
+            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
             {
                 ChangeToken.OnChange(
                     () => provider.GetReloadToken(),
@@ -366,12 +359,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
 
             // Act
-            using (var provider = new ReloadControlKeyVaultProvider(options))
+            using (var provider = new ReloadControlKeyVaultProvider(client.Object,options))
             {
                 ChangeToken.OnChange(
                     () => provider.GetReloadToken(),
@@ -412,12 +404,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
 
             // Act
-            using (var provider = new ReloadControlKeyVaultProvider(options))
+            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
             {
                 ChangeToken.OnChange(
                     () => provider.GetReloadToken(),
@@ -465,12 +456,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
 
             // Act
-            using (var provider = new ReloadControlKeyVaultProvider(options))
+            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
             {
                 ChangeToken.OnChange(
                     () => provider.GetReloadToken(),
@@ -518,12 +508,11 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object,
                 ReloadInterval = NoReloadDelay
             };
 
             // Act
-            using (var provider = new ReloadControlKeyVaultProvider(options))
+            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
             {
                 ChangeToken.OnChange(
                     () => provider.GetReloadToken(),
@@ -573,11 +562,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object
             };
 
             // Act
-            using (var provider = new AzureKvConfigurationProvider(options))
+            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
             {
                 provider.Load();
 
@@ -612,11 +600,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object
             };
 
             // Act
-            var provider = new AzureKvConfigurationProvider(options);
+            var provider = new AzureKvConfigurationProvider(client.Object,options);
             provider.Load();
             await tcs.Task;
 
@@ -654,11 +641,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             var options = new AzureKvConfigurationOptions
             {
                 ConfigurationSectionPrefix = null,
-                Client = client.Object
             };
 
             // Act
-            var provider = new AzureKvConfigurationProvider(options);
+            var provider = new AzureKvConfigurationProvider(client.Object,options);
 
             provider.Load();
 
@@ -682,7 +668,6 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
         {
             var options = new AzureKvConfigurationOptions
             {
-                Client = null
             };
 
             Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
@@ -693,7 +678,6 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
         {
             var options = new AzureKvConfigurationOptions
             {
-                Client = Mock.Of<SecretClient>(),
                 KeyVaultSecretNameEncoder = null
             };
 
@@ -705,11 +689,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
         {
             var options = new AzureKvConfigurationOptions
             {
-                Client = Mock.Of<SecretClient>(),
                 VaultSecrets = null
             };
 
-            Assert.NotNull(new AzureKvConfigurationProvider(options));
+            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
         }
 
         [Test]
@@ -717,11 +700,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
         {
             var options = new AzureKvConfigurationOptions
             {
-                Client = Mock.Of<SecretClient>(),
                 VaultSecrets = null
             };
 
-            Assert.NotNull(new AzureKvConfigurationProvider(options));
+            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
         }
 
 
@@ -730,7 +712,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
             private TaskCompletionSource<object> _releaseTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<object> _signalTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public ReloadControlKeyVaultProvider(AzureKvConfigurationOptions options) : base(options)
+            public ReloadControlKeyVaultProvider(SecretClient secretClient,AzureKvConfigurationOptions options) : base(secretClient, options)
             {
             }
 

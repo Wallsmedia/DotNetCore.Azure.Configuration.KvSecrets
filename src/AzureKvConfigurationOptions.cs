@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Azure.Core;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Configuration;
 
@@ -22,8 +23,19 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         }
 
         /// <summary>
+        /// Gets or sets Azure KeyVault Uri
+        /// </summary>
+        public Uri VaultUri { get; set; }
+
+        /// <summary>
+        /// Gets or sets the <see cref="TokenCredential"/> to use for client credentials.
+        /// </summary>
+        public TokenCredential Credential { get; set; }
+
+        /// <summary>
         /// Gets or sets the <see cref="SecretClient"/> to use for retrieving values.
         /// </summary>
+        [Obsolete("Not supported due to security reasons Use TokenCredential", true)]
         public SecretClient Client { get; set; }
 
         /// <summary>

@@ -32,14 +32,38 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         /// Creates a new instance of <see cref="AzureKvConfigurationProvider"/>.
         /// </summary>
         /// <param name="options">The <see cref="AzureKvConfigurationOptions"/> to use for configuration options.</param>
-        public AzureKvConfigurationProvider(AzureKvConfigurationOptions options)
+        /// <param name="secretClient">The client <see cref="SecretClient"/></param>
+    
+        public AzureKvConfigurationProvider(SecretClient secretClient,AzureKvConfigurationOptions options)
         {
             Argument.AssertNotNull(options, nameof(options));
-            Argument.AssertNotNull(options.Client, nameof(options.Client));
             Argument.AssertNotNull(options.KeyVaultSecretNameEncoder, nameof(options.KeyVaultSecretNameEncoder));
 
             _reloadInterval = options.ReloadInterval;
-            _client = options.Client;
+            _client = secretClient;
+            _uploadKeyList = options.VaultSecrets != null ? new List<string>(options.VaultSecrets) : new List<string>();
+            _uploadAndMapKeys = options.VaultSecretMap != null ? new Dictionary<string, string>(options.VaultSecretMap) : new Dictionary<string, string>();
+            _configurationSectionPrefix = options.ConfigurationSectionPrefix;
+            _keyVaultSecretNameEncoder = options.KeyVaultSecretNameEncoder;
+
+            _fullLoad = _uploadKeyList.Count == 0 && _uploadAndMapKeys.Count == 0;
+            _cancellationToken = new CancellationTokenSource();
+            _options = options;
+        }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="AzureKvConfigurationProvider"/>.
+        /// </summary>
+        /// <param name="options">The <see cref="AzureKvConfigurationOptions"/> to use for configuration options.</param>
+        public AzureKvConfigurationProvider(AzureKvConfigurationOptions options)
+        {
+            Argument.AssertNotNull(options, nameof(options));
+            Argument.AssertNotNull(options.Credential, nameof(options.Credential));
+            Argument.AssertNotNull(options.VaultUri, nameof(options.VaultUri));
+            Argument.AssertNotNull(options.KeyVaultSecretNameEncoder, nameof(options.KeyVaultSecretNameEncoder));
+
+            _reloadInterval = options.ReloadInterval;
+            _client = new SecretClient(options.VaultUri, options.Credential);
             _uploadKeyList = options.VaultSecrets != null ? new List<string>(options.VaultSecrets) : new List<string>();
             _uploadAndMapKeys = options.VaultSecretMap != null ? new Dictionary<string, string>(options.VaultSecretMap) : new Dictionary<string, string>();
             _configurationSectionPrefix = options.ConfigurationSectionPrefix;
