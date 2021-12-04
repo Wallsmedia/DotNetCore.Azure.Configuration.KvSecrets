@@ -1,7 +1,7 @@
 ﻿<Project>
 
   <PropertyGroup>
-    <Product>Azure AspNetCore KeyVault Secrets</Product>
+    <Product>DotNetCore Azure Configuration Key Vault Secrets</Product>
     <Company>.NET Foundation</Company>
     <Copyright>Copyright (c) $([System.DateTime]::Now.ToString('yyyy')) .NET Foundation. All rights reserved.</Copyright>
     <Version>6.0.2</Version>

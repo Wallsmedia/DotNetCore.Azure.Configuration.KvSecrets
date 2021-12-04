@@ -1,4 +1,4 @@
-## DotNetCore Azure Configuration KeyVault Secrets
+## DotNetCore Azure Configuration Key Vault Secrets
 
 The DotNetCore.Azure.Configuration.KvSecrets based on [Azure.Extensions.AspNetCore.Configuration.Secrets][source].
 ## Improvements
