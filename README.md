@@ -12,7 +12,9 @@ The DotNetCore.Azure.Configuration.KvSecrets based on [Azure.Extensions.AspNetCo
 
 Install the package with [DotNetCore.Azure.Configuration.KvSecrets](https://www.nuget.org/packages/DotNetCore.Azure.Configuration.KvSecrets):
 
-**Version 6.x.x** : **supports only **Microsoft.AspNetCore.App** 6.0-***
+**Version 7.x.x** : **supports only .NET 7.0**
+
+**Version 6.x.x** : **supports only .NET 6.0**
 
 **Version 5.x.x** : **supports only **Microsoft.AspNetCore.App** 5.0-***
 
