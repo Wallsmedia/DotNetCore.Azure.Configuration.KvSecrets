@@ -12,6 +12,8 @@ The DotNetCore.Azure.Configuration.KvSecrets based on [Azure.Extensions.AspNetCo
 
 Install the package with [DotNetCore.Azure.Configuration.KvSecrets](https://www.nuget.org/packages/DotNetCore.Azure.Configuration.KvSecrets):
 
+**Version 8.x.x** : **supports only .NET 8.0**
+
 **Version 7.x.x** : **supports only .NET 7.0**
 
 **Version 6.x.x** : **supports only .NET 6.0**
@@ -48,45 +50,35 @@ Add configuration provider with WebHostBuiler initialization.
 **Program.cs**
 
 ```C# 
-    public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.ConfigureAppConfiguration(Startup.AddKvConfigurations);
-                    webBuilder.UseStartup<Startup>();
-                });
+      var builder = WebApplication.CreateBuilder(args);
+      builder.AddKeyVaultConfigurationProvider();      
 ```
 
 
-**Startup.cs**
+**StartupExt.cs**
+
+Used DotNetCore Configuration Templates to inject secrets into Microservice configuration.
+(Add to project nuget package DotNetCore.Configuration.Formatter.)
 
 ```C# 
-        public static void AddKvConfigurations(WebHostBuilderContext hostingContext, IConfigurationBuilder configurationBuilder)
-        {
-            var configBuilder = new ConfigurationBuilder().AddInMemoryCollection();
-            IHostEnvironment env = hostingContext.HostingEnvironment;
-            configBuilder.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-                  .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: false);
-            configBuilder.AddEnvironmentVariables();
+  public static void AddKeyVaultConfigurationProvider(this WebApplicationBuilder builder)
+    {
 
-            var config = configBuilder.Build();
+        var credential = new DefaultAzureCredential(
+            new DefaultAzureCredentialOptions()
+            {
+                ExcludeSharedTokenCacheCredential = true,
+                ExcludeVisualStudioCodeCredential = true,
+                ExcludeVisualStudioCredential = true,
+                ExcludeInteractiveBrowserCredential = true
+            });
 
-            var options = configuration.GetSection(nameof(AzureKvConfigurationOptions))
-                               .Get<AzureKvConfigurationOptions>();
+        var optionsKv = builder.Configuration
+                           .GetTypeNameFormatted<AzureKvConfigurationOptions>();
 
-            var credential = new DefaultAzureCredential(
-                new DefaultAzureCredentialOptions()
-                {
-                    ExcludeSharedTokenCacheCredential = true,
-                    ExcludeVisualStudioCodeCredential = true,
-                    ExcludeVisualStudioCredential = true,
-                    ExcludeInteractiveBrowserCredential = true
-                });
-          
-            // Adds Azure Key Valt configuration provider.
-            configurationBuilder.AddAzureKeyVault(credential, options);
-           
-        }
+        // Adds Azure Key Valt configuration provider.
+        builder.Configuration.AddAzureKeyVault(credential, optionsKv);
+    }
 ```
 
 

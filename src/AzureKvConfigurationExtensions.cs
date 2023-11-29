@@ -1,10 +1,8 @@
 using System;
 using AspNetCore.Azure.Configuration.KvSecrets;
 using Azure.Core;
-using Azure.Security.KeyVault.Secrets;
 
 
-#pragma warning disable AZC0001 // Extension methods have to be in the correct namespace to appear in intellisense.
 namespace Microsoft.Extensions.Configuration
 #pragma warning restore
 {
