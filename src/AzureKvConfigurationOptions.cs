@@ -33,12 +33,6 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         public TokenCredential Credential { get; set; }
 
         /// <summary>
-        /// Gets or sets the <see cref="SecretClient"/> to use for retrieving values.
-        /// </summary>
-        [Obsolete("Not supported due to security reasons Use TokenCredential", true)]
-        public SecretClient Client { get; set; }
-
-        /// <summary>
         /// The secrets that should be pulled from the Key Vault Secrets.
         /// </summary>
         public List<string> VaultSecrets { get; set; } = new List<string>();
@@ -74,7 +68,7 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         public int AzureErrorReloadTimes { get; set; } = 12;
 
         /// <summary>
-        /// Clients timeout connections - delay before repiating 
+        /// Clients timeout connections - delay before repeating 
         /// </summary>
         public int AzureErrorReloadDelay { get; set; } = 5;
     }
