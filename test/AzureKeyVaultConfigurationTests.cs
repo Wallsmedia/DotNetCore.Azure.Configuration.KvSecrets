@@ -1,744 +1,744 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Azure;
 using Azure.Core.TestFramework;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Primitives;
 using Moq;
 using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
+namespace AspNetCore.Azure.Configuration.KvSecrets.Tests;
+
+public class AzureKeyVaultConfigurationTests
 {
-    public class AzureKeyVaultConfigurationTests
+    private static readonly TimeSpan NoReloadDelay = TimeSpan.FromMilliseconds(2);
+
+    private void SetPages(Mock<SecretClient> mock, params KeyVaultSecret[][] pages)
     {
-        private static readonly TimeSpan NoReloadDelay = TimeSpan.FromMilliseconds(2);
+        SetPages(mock, null, pages);
+    }
 
-        private void SetPages(Mock<SecretClient> mock, params KeyVaultSecret[][] pages)
+    private void SetPages(Mock<SecretClient> mock, Func<string, Task> getSecretCallback, params KeyVaultSecret[][] pages)
+    {
+        getSecretCallback ??= (_ => Task.CompletedTask);
+
+        var pagesOfProperties = pages.Select(
+            page => page.Select(secret => secret.Properties).ToArray()).ToArray();
+
+        mock.Setup(m => m.GetPropertiesOfSecretsAsync(default)).Returns(new MockAsyncPageable(pagesOfProperties));
+
+        foreach (var page in pages)
         {
-            SetPages(mock, null, pages);
-        }
-
-        private void SetPages(Mock<SecretClient> mock, Func<string, Task> getSecretCallback, params KeyVaultSecret[][] pages)
-        {
-            getSecretCallback ??= (_ => Task.CompletedTask);
-
-            var pagesOfProperties = pages.Select(
-                page => page.Select(secret => secret.Properties).ToArray()).ToArray();
-
-            mock.Setup(m => m.GetPropertiesOfSecretsAsync(default)).Returns(new MockAsyncPageable(pagesOfProperties));
-
-            foreach (var page in pages)
+            foreach (var secret in page)
             {
-                foreach (var secret in page)
-                {
-                    SecretProperties[][] ser = new[] { new SecretProperties[] { secret.Properties } };
-                    mock.Setup(client => client.GetPropertiesOfSecretVersionsAsync(secret.Name, default))
-                        .Returns(new MockAsyncPageable(ser));
-                }
-            }
-
-            foreach (var page in pages)
-            {
-                foreach (var secret in page)
-                {
-
-                    mock.Setup(client => client.GetSecretAsync(secret.Name, null, default))
-                        .Returns(async (string name, string label, CancellationToken token) =>
-                        {
-                            await getSecretCallback(name);
-                            return Response.FromValue(secret, Mock.Of<Response>());
-                        }
-                    );
-                }
+                SecretProperties[][] ser = new[] { new SecretProperties[] { secret.Properties } };
+                mock.Setup(client => client.GetPropertiesOfSecretVersionsAsync(secret.Name, default))
+                    .Returns(new MockAsyncPageable(ser));
             }
         }
 
-        private class MockAsyncPageable : AsyncPageable<SecretProperties>
+        foreach (var page in pages)
         {
-            private readonly SecretProperties[][] _pages;
-
-            public MockAsyncPageable(SecretProperties[][] pages)
+            foreach (var secret in page)
             {
-                _pages = pages;
-            }
 
-            public override async IAsyncEnumerable<Page<SecretProperties>> AsPages(string continuationToken = null, int? pageSizeHint = null)
-            {
-                foreach (var page in _pages)
-                {
-                    yield return Page<SecretProperties>.FromValues(page, null, Mock.Of<Response>());
-                }
-
-                await Task.CompletedTask;
-            }
-        }
-
-        [Test]
-        public void LoadsAllSecretsFromVaultIntoSection()
-        {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1")
-                },
-                new[]
-                {
-                    CreateSecret("Secret2", "Value2")
-                }
-                );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = "secrets"
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
-                Assert.AreEqual(new[] { "secrets", "secrets" }, childKeys);
-                Assert.AreEqual("Value1", provider.Get("secrets:Secret1"));
-                Assert.AreEqual("Value2", provider.Get("secrets:Secret2"));
-            }
-        }
-
-        [Test]
-        public void LoadsAllSecretsFromVaultIntoEncodeSection()
-        {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("secrets--Secret1", "Value1")
-                },
-                new[]
-                {
-                    CreateSecret("secrets--Secret2", "Value2")
-                }
-                );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
-                Assert.AreEqual(new[] { "secrets", "secrets" }, childKeys);
-                Assert.AreEqual("Value1", provider.Get("secrets:Secret1"));
-                Assert.AreEqual("Value2", provider.Get("secrets:Secret2"));
-            }
-        }
-
-        private KeyVaultSecret CreateSecret(string name, string value, bool? enabled = true, DateTimeOffset? updated = null)
-        {
-            var id = new Uri("http://azure.keyvault/" + name);
-
-            var secretProperties = SecretModelFactory.SecretProperties(id, name: name, updatedOn: updated);
-            secretProperties.Enabled = enabled;
-
-            return SecretModelFactory.KeyVaultSecret(secretProperties, value);
-        }
-
-        [Test]
-        public void DoesNotLoadFilteredItems()
-        {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1")
-                },
-                new[]
-                {
-                    CreateSecret("Secret2", "Value2")
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-                VaultSecrets = new List<string> { "Secret1" }
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                // Assert
-                var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
-                Assert.AreEqual(new[] { "Secret1" }, childKeys);
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-            }
-        }
-
-        [Test]
-        public void DoesNotLoadFilteredAndRemapItems()
-        {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1")
-                },
-                new[]
-                {
-                    CreateSecret("Secret2", "Value2")
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-                VaultSecretMap = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                // Assert
-                var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
-                Assert.AreEqual(new[] { "SecretMap" }, childKeys);
-                Assert.AreEqual("Value1", provider.Get("SecretMap"));
-            }
-        }
-
-        [Test]
-        public void DoesNotLoadDisabledItems()
-        {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1")
-                },
-                new[]
-                {
-                    CreateSecret("Secret2", "Value2", enabled: false),
-                    CreateSecret("Secret3", "Value3", enabled: null),
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                // Assert
-                var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
-                Assert.AreEqual(new[] { "Secret1" }, childKeys);
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-                Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
-                Assert.Throws<InvalidOperationException>(() => provider.Get("Secret3"));
-            }
-        }
-
-        [Test]
-        public void SupportsReload()
-        {
-            var updated = DateTime.Now;
-
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-
-                SetPages(client,
-                    new[]
+                mock.Setup(client => client.GetSecretAsync(secret.Name, null, default))
+                    .Returns(async (string name, string label, CancellationToken token) =>
                     {
-                        CreateSecret("Secret1", "Value2", enabled: true, updated: updated.AddSeconds(1))
+                        await getSecretCallback(name);
+                        return Response.FromValue(secret, Mock.Of<Response>());
                     }
                 );
-
-                provider.Load();
-                Assert.AreEqual("Value2", provider.Get("Secret1"));
             }
         }
+    }
 
-        [Test]
-        public async Task SupportsAutoReload()
+    private class MockAsyncPageable : AsyncPageable<SecretProperties>
+    {
+        private readonly SecretProperties[][] _pages;
+
+        public MockAsyncPageable(SecretProperties[][] pages)
         {
-            var updated = DateTime.Now;
-            int numOfTokensFired = 0;
-
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-                ReloadInterval = NoReloadDelay
-            };
-            // Act & Assert
-            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
-            {
-                ChangeToken.OnChange(
-                    () => provider.GetReloadToken(),
-                    () =>
-                    {
-                        numOfTokensFired++;
-                    });
-
-                provider.Load();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-
-                await provider.Wait();
-
-                SetPages(client,
-                        new[]
-                    {
-                        CreateSecret("Secret1", "Value2", enabled: true, updated: updated.AddSeconds(1))
-                    }
-                );
-
-                provider.Release();
-
-                await provider.Wait();
-
-                Assert.AreEqual("Value2", provider.Get("Secret1"));
-                Assert.AreEqual(1, numOfTokensFired);
-            }
+            _pages = pages;
         }
 
-        [Test]
-        public async Task DoesntReloadUnchanged()
+        public override async IAsyncEnumerable<Page<SecretProperties>> AsPages(string continuationToken = null, int? pageSizeHint = null)
         {
-            var updated = DateTime.Now;
-            int numOfTokensFired = 0;
-
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
+            foreach (var page in _pages)
             {
-                ConfigurationSectionPrefix = null,
-                ReloadInterval = NoReloadDelay
-            };
-
-            // Act
-            using (var provider = new ReloadControlKeyVaultProvider(client.Object,options))
-            {
-                ChangeToken.OnChange(
-                    () => provider.GetReloadToken(),
-                    () =>
-                    {
-                        numOfTokensFired++;
-                    });
-
-                provider.Load();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-
-                await provider.Wait();
-
-                provider.Release();
-
-                await provider.Wait();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-                Assert.AreEqual(0, numOfTokensFired);
+                yield return Page<SecretProperties>.FromValues(page, null, Mock.Of<Response>());
             }
+
+            await Task.CompletedTask;
         }
+    }
 
-        [Test]
-        public async Task SupportsReloadOnRemove()
-        {
-            int numOfTokensFired = 0;
-
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1"),
-                    CreateSecret("Secret2", "Value2")
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
+    [Test]
+    public void LoadsAllSecretsFromVaultIntoSection()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
             {
-                ConfigurationSectionPrefix = null,
-                ReloadInterval = NoReloadDelay
-            };
-
-            // Act
-            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+                CreateSecret("Secret1", "Value1")
+            },
+            new[]
             {
-                ChangeToken.OnChange(
-                    () => provider.GetReloadToken(),
-                    () =>
-                    {
-                        numOfTokensFired++;
-                    });
-
-                provider.Load();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-
-                await provider.Wait();
-
-                SetPages(client,
-                    new[]
-                    {
-                        CreateSecret("Secret1", "Value2")
-                    }
-                );
-
-                provider.Release();
-
-                await provider.Wait();
-
-                Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
-                Assert.AreEqual(1, numOfTokensFired);
+                CreateSecret("Secret2", "Value2")
             }
-        }
-
-        [Test]
-        public async Task SupportsReloadOnEnabledChange()
-        {
-            int numOfTokensFired = 0;
-
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1"),
-                    CreateSecret("Secret2", "Value2")
-                }
             );
 
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-                ReloadInterval = NoReloadDelay
-            };
-
-            // Act
-            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
-            {
-                ChangeToken.OnChange(
-                    () => provider.GetReloadToken(),
-                    () =>
-                    {
-                        numOfTokensFired++;
-                    });
-
-                provider.Load();
-
-                Assert.AreEqual("Value2", provider.Get("Secret2"));
-
-                await provider.Wait();
-
-                SetPages(client,
-        new[]
-                    {
-                        CreateSecret("Secret1", "Value2"),
-                        CreateSecret("Secret2", "Value2", enabled: false)
-                    }
-                );
-
-                provider.Release();
-
-                await provider.Wait();
-
-                Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
-                Assert.AreEqual(1, numOfTokensFired);
-            }
-        }
-
-        [Test]
-        public async Task SupportsReloadOnAdd()
+        var options = new AzureKvConfigurationOptions
         {
-            int numOfTokensFired = 0;
+            ConfigurationSectionPrefix = "secrets"
+        };
 
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1")
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-                ReloadInterval = NoReloadDelay
-            };
-
-            // Act
-            using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
-            {
-                ChangeToken.OnChange(
-                    () => provider.GetReloadToken(),
-                    () =>
-                    {
-                        numOfTokensFired++;
-                    });
-
-                provider.Load();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-
-                await provider.Wait();
-
-                SetPages(client,
-                    new[]
-                    {
-                        CreateSecret("Secret1", "Value1"),
-                    },
-                    new[]
-                    {
-                        CreateSecret("Secret2", "Value2")
-                    }
-                );
-
-                provider.Release();
-
-                await provider.Wait();
-
-                Assert.AreEqual("Value1", provider.Get("Secret1"));
-                Assert.AreEqual("Value2", provider.Get("Secret2"));
-                Assert.AreEqual(1, numOfTokensFired);
-            }
-        }
-
-        [Test]
-        public void ReplaceDoubleMinusInKeyName()
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
         {
-            var client = new Mock<SecretClient>();
-            SetPages(client,
-                new[]
-                {
-                    CreateSecret("Section--Secret1", "Value1")
-                }
-            );
-
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-            };
-
-            // Act
-            using (var provider = new AzureKvConfigurationProvider(client.Object,options))
-            {
-                provider.Load();
-
-                // Assert
-                Assert.AreEqual("Value1", provider.Get("Section:Secret1"));
-            }
-        }
-
-        [Test]
-        public async Task LoadsSecretsInParallel()
-        {
-            var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var expectedCount = 2;
-            var client = new Mock<SecretClient>();
-
-            SetPages(client,
-                async (string id) =>
-                {
-                    if (Interlocked.Decrement(ref expectedCount) == 0)
-                    {
-                        tcs.SetResult(null);
-                    }
-
-                    await tcs.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
-                },
-                new[]
-                {
-                    CreateSecret("Secret1", "Value1"),
-                    CreateSecret("Secret2", "Value2")
-                }
-            );
-            var options = new AzureKvConfigurationOptions
-            {
-                ConfigurationSectionPrefix = null,
-            };
-
-            // Act
-            var provider = new AzureKvConfigurationProvider(client.Object,options);
             provider.Load();
-            await tcs.Task;
 
-            // Assert
-            Assert.AreEqual("Value1", provider.Get("Secret1"));
-            Assert.AreEqual("Value2", provider.Get("Secret2"));
+            var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
+            Assert.That("secrets" == childKeys[0] && "secrets" == childKeys[1]);
+            Assert.That("Value1" == provider.Get("secrets:Secret1"));
+            Assert.That("Value2" == provider.Get("secrets:Secret2"));
         }
+    }
 
-        [Test]
-        public void LimitsMaxParallelism()
-        {
-            var expectedCount = 100;
-            var currentParallel = 0;
-            var maxParallel = 0;
-            var client = new Mock<SecretClient>();
-
-            // Create 10 pages of 10 secrets
-            var pages = Enumerable.Range(0, 10).Select(a =>
-                Enumerable.Range(0, 10).Select(b => CreateSecret("Secret" + (a * 10 + b), (a * 10 + b).ToString())).ToArray()
-            ).ToArray();
-
-            SetPages(client,
-                async (string id) =>
-                {
-                    var i = Interlocked.Increment(ref currentParallel);
-
-                    maxParallel = Math.Max(i, maxParallel);
-
-                    await Task.Delay(30);
-                    Interlocked.Decrement(ref currentParallel);
-                },
-                pages
+    [Test]
+    public void LoadsAllSecretsFromVaultIntoEncodeSection()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("secrets--Secret1", "Value1")
+            },
+            new[]
+            {
+                CreateSecret("secrets--Secret2", "Value2")
+            }
             );
 
-            var options = new AzureKvConfigurationOptions
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+        };
+
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
+        {
+            provider.Load();
+
+            var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
+            Assert.That("secrets" == childKeys[0] && "secrets" == childKeys[1]);
+            Assert.That("Value1" == provider.Get("secrets:Secret1"));
+            Assert.That("Value2" == provider.Get("secrets:Secret2"));
+        }
+    }
+
+    private KeyVaultSecret CreateSecret(string name, string value, bool? enabled = true, DateTimeOffset? updated = null)
+    {
+        var id = new Uri("http://azure.keyvault/" + name);
+
+        var secretProperties = SecretModelFactory.SecretProperties(id, name: name, updatedOn: updated);
+        secretProperties.Enabled = enabled;
+
+        return SecretModelFactory.KeyVaultSecret(secretProperties, value);
+    }
+
+    [Test]
+    public void DoesNotLoadFilteredItems()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
             {
-                ConfigurationSectionPrefix = null,
-            };
+                CreateSecret("Secret1", "Value1")
+            },
+            new[]
+            {
+                CreateSecret("Secret2", "Value2")
+            }
+        );
 
-            // Act
-            var provider = new AzureKvConfigurationProvider(client.Object,options);
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            VaultSecrets = new List<string> { "Secret1" }
+        };
 
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
+        {
             provider.Load();
 
             // Assert
-            for (int i = 0; i < expectedCount; i++)
+            var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
+            Assert.That("Secret1" == childKeys[0]);
+            Assert.That("Value1" == provider.Get("Secret1"));
+        }
+    }
+
+    [Test]
+    public void DoesNotLoadFilteredAndRemapItems()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
             {
-                Assert.AreEqual(i.ToString(), provider.Get("Secret" + i));
+                CreateSecret("Secret1", "Value1")
+            },
+            new[]
+            {
+                CreateSecret("Secret2", "Value2")
             }
+        );
 
-            Assert.LessOrEqual(maxParallel, 32);
-        }
-
-        [Test]
-        public void ConstructorThrowsForNullManager()
+        var options = new AzureKvConfigurationOptions
         {
-            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(null));
-        }
+            ConfigurationSectionPrefix = null,
+            VaultSecretMap = new Dictionary<string, string> { ["Secret1"] = "SecretMap" }
+        };
 
-        [Test]
-        public void ConstructorThrowsForNullValueOfClient()
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
         {
-            var options = new AzureKvConfigurationOptions
+            provider.Load();
+
+            // Assert
+            var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
+            Assert.That("SecretMap" == childKeys[0]);
+            Assert.That("Value1" == provider.Get("SecretMap"));
+        }
+    }
+
+    [Test]
+    public void DoesNotLoadDisabledItems()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
             {
-            };
-
-            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
-        }
-
-        [Test]
-        public void ConstructorThrowsForNullValueOfKeyVaultSecretNameEncoder()
-        {
-            var options = new AzureKvConfigurationOptions
+                CreateSecret("Secret1", "Value1")
+            },
+            new[]
             {
-                KeyVaultSecretNameEncoder = null
-            };
-
-            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
-        }
-
-        [Test]
-        public void ConstructorThrowsForNullValueOfUploadAndMapKeys()
-        {
-            var options = new AzureKvConfigurationOptions
-            {
-                VaultSecrets = null
-            };
-
-            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
-        }
-
-        [Test]
-        public void ConstructorThrowsForNullValueOfUploadKeyList()
-        {
-            var options = new AzureKvConfigurationOptions
-            {
-                VaultSecrets = null
-            };
-
-            Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
-        }
-
-
-        private class ReloadControlKeyVaultProvider : AzureKvConfigurationProvider
-        {
-            private TaskCompletionSource<object> _releaseTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            private TaskCompletionSource<object> _signalTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            public ReloadControlKeyVaultProvider(SecretClient secretClient,AzureKvConfigurationOptions options) : base(secretClient, options)
-            {
+                CreateSecret("Secret2", "Value2", enabled: false),
+                CreateSecret("Secret3", "Value3", enabled: null),
             }
+        );
 
-            protected override async Task WaitForReload()
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null
+        };
+
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
+        {
+            provider.Load();
+
+            // Assert
+            var childKeys = provider.GetChildKeys(Enumerable.Empty<string>(), null).ToArray();
+            Assert.That("Secret1" == childKeys[0]);
+            Assert.That("Value1" == provider.Get("Secret1"));
+            Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
+            Assert.Throws<InvalidOperationException>(() => provider.Get("Secret3"));
+        }
+    }
+
+    [Test]
+    public void SupportsReload()
+    {
+        var updated = DateTime.Now;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
             {
-                _signalTaskCompletionSource.SetResult(null);
-                await _releaseTaskCompletionSource.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
+                CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
             }
+        );
 
-            public async Task Wait()
-            {
-                await _signalTaskCompletionSource.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
-            }
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null
+        };
 
-            public void Release()
-            {
-                if (!_signalTaskCompletionSource.Task.IsCompleted)
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
+        {
+            provider.Load();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+
+            SetPages(client,
+                new[]
                 {
-                    throw new InvalidOperationException("Provider is not waiting for reload");
+                    CreateSecret("Secret1", "Value2", enabled: true, updated: updated.AddSeconds(1))
+                }
+            );
+
+            provider.Load();
+            Assert.That("Value2" == provider.Get("Secret1"));
+        }
+    }
+
+    [Test]
+    public async Task SupportsAutoReload()
+    {
+        var updated = DateTime.Now;
+        int numOfTokensFired = 0;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            ReloadInterval = NoReloadDelay
+        };
+        // Act & Assert
+        using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+        {
+            ChangeToken.OnChange(
+                () => provider.GetReloadToken(),
+                () =>
+                {
+                    numOfTokensFired++;
+                });
+
+            provider.Load();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+
+            await provider.Wait();
+
+            SetPages(client,
+                    new[]
+                {
+                    CreateSecret("Secret1", "Value2", enabled: true, updated: updated.AddSeconds(1))
+                }
+            );
+
+            provider.Release();
+
+            await provider.Wait();
+
+            Assert.That("Value2" == provider.Get("Secret1"));
+            Assert.That(1 == numOfTokensFired);
+        }
+    }
+
+    [Test]
+    public async Task DoesntReloadUnchanged()
+    {
+        var updated = DateTime.Now;
+        int numOfTokensFired = 0;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Secret1", "Value1", enabled: true, updated: updated)
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            ReloadInterval = NoReloadDelay
+        };
+
+        // Act
+        using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+        {
+            ChangeToken.OnChange(
+                () => provider.GetReloadToken(),
+                () =>
+                {
+                    numOfTokensFired++;
+                });
+
+            provider.Load();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+
+            await provider.Wait();
+
+            provider.Release();
+
+            await provider.Wait();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+            Assert.That(0 == numOfTokensFired);
+        }
+    }
+
+    [Test]
+    public async Task SupportsReloadOnRemove()
+    {
+        int numOfTokensFired = 0;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Secret1", "Value1"),
+                CreateSecret("Secret2", "Value2")
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            ReloadInterval = NoReloadDelay
+        };
+
+        // Act
+        using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+        {
+            ChangeToken.OnChange(
+                () => provider.GetReloadToken(),
+                () =>
+                {
+                    numOfTokensFired++;
+                });
+
+            provider.Load();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+
+            await provider.Wait();
+
+            SetPages(client,
+                new[]
+                {
+                    CreateSecret("Secret1", "Value2")
+                }
+            );
+
+            provider.Release();
+
+            await provider.Wait();
+
+            Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
+            Assert.That(1 == numOfTokensFired);
+        }
+    }
+
+    [Test]
+    public async Task SupportsReloadOnEnabledChange()
+    {
+        int numOfTokensFired = 0;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Secret1", "Value1"),
+                CreateSecret("Secret2", "Value2")
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            ReloadInterval = NoReloadDelay
+        };
+
+        // Act
+        using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+        {
+            ChangeToken.OnChange(
+                () => provider.GetReloadToken(),
+                () =>
+                {
+                    numOfTokensFired++;
+                });
+
+            provider.Load();
+
+            Assert.That("Value2" == provider.Get("Secret2"));
+
+            await provider.Wait();
+
+            SetPages(client,
+    new[]
+                {
+                    CreateSecret("Secret1", "Value2"),
+                    CreateSecret("Secret2", "Value2", enabled: false)
+                }
+            );
+
+            provider.Release();
+
+            await provider.Wait();
+
+            Assert.Throws<InvalidOperationException>(() => provider.Get("Secret2"));
+            Assert.That(1 == numOfTokensFired);
+        }
+    }
+
+    [Test]
+    public async Task SupportsReloadOnAdd()
+    {
+        int numOfTokensFired = 0;
+
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Secret1", "Value1")
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+            ReloadInterval = NoReloadDelay
+        };
+
+        // Act
+        using (var provider = new ReloadControlKeyVaultProvider(client.Object, options))
+        {
+            ChangeToken.OnChange(
+                () => provider.GetReloadToken(),
+                () =>
+                {
+                    numOfTokensFired++;
+                });
+
+            provider.Load();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+
+            await provider.Wait();
+
+            SetPages(client,
+                new[]
+                {
+                    CreateSecret("Secret1", "Value1"),
+                },
+                new[]
+                {
+                    CreateSecret("Secret2", "Value2")
+                }
+            );
+
+            provider.Release();
+
+            await provider.Wait();
+
+            Assert.That("Value1" == provider.Get("Secret1"));
+            Assert.That("Value1" == provider.Get("Secret1"));
+            Assert.That("Value2" == provider.Get("Secret2"));
+            Assert.That(1 == numOfTokensFired);
+        }
+    }
+
+    [Test]
+    public void ReplaceDoubleMinusInKeyName()
+    {
+        var client = new Mock<SecretClient>();
+        SetPages(client,
+            new[]
+            {
+                CreateSecret("Section--Secret1", "Value1")
+            }
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+        };
+
+        // Act
+        using (var provider = new AzureKvConfigurationProvider(client.Object, options))
+        {
+            provider.Load();
+
+            // Assert
+            Assert.That("Value1" == provider.Get("Section:Secret1"));
+        }
+    }
+
+    [Test]
+    public async Task LoadsSecretsInParallel()
+    {
+        var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expectedCount = 2;
+        var client = new Mock<SecretClient>();
+
+        SetPages(client,
+            async (string id) =>
+            {
+                if (Interlocked.Decrement(ref expectedCount) == 0)
+                {
+                    tcs.SetResult(null);
                 }
 
-                var releaseTaskCompletionSource = _releaseTaskCompletionSource;
-                _releaseTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _signalTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-                releaseTaskCompletionSource.SetResult(null);
+                await tcs.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
+            },
+            new[]
+            {
+                CreateSecret("Secret1", "Value1"),
+                CreateSecret("Secret2", "Value2")
             }
+        );
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+        };
+
+        // Act
+        var provider = new AzureKvConfigurationProvider(client.Object, options);
+        provider.Load();
+        await tcs.Task;
+
+        // Assert
+        Assert.That("Value1" == provider.Get("Secret1"));
+        Assert.That("Value2" == provider.Get("Secret2"));
+    }
+
+    [Test]
+    public void LimitsMaxParallelism()
+    {
+        var expectedCount = 100;
+        var currentParallel = 0;
+        var maxParallel = 0;
+        var client = new Mock<SecretClient>();
+
+        // Create 10 pages of 10 secrets
+        var pages = Enumerable.Range(0, 10).Select(a =>
+            Enumerable.Range(0, 10).Select(b => CreateSecret("Secret" + (a * 10 + b), (a * 10 + b).ToString())).ToArray()
+        ).ToArray();
+
+        SetPages(client,
+            async (string id) =>
+            {
+                var i = Interlocked.Increment(ref currentParallel);
+
+                maxParallel = Math.Max(i, maxParallel);
+
+                await Task.Delay(30);
+                Interlocked.Decrement(ref currentParallel);
+            },
+            pages
+        );
+
+        var options = new AzureKvConfigurationOptions
+        {
+            ConfigurationSectionPrefix = null,
+        };
+
+        // Act
+        var provider = new AzureKvConfigurationProvider(client.Object, options);
+
+        provider.Load();
+
+        // Assert
+        for (int i = 0; i < expectedCount; i++)
+        {
+            Assert.That(i.ToString() == provider.Get("Secret" + i));
+        }
+
+        Assert.That(maxParallel <= 32);
+    }
+
+    [Test]
+    public void ConstructorThrowsForNullManager()
+    {
+        Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(null));
+    }
+
+    [Test]
+    public void ConstructorThrowsForNullValueOfClient()
+    {
+        var options = new AzureKvConfigurationOptions
+        {
+        };
+
+        Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
+    }
+
+    [Test]
+    public void ConstructorThrowsForNullValueOfKeyVaultSecretNameEncoder()
+    {
+        var options = new AzureKvConfigurationOptions
+        {
+            KeyVaultSecretNameEncoder = null
+        };
+
+        Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
+    }
+
+    [Test]
+    public void ConstructorThrowsForNullValueOfUploadAndMapKeys()
+    {
+        var options = new AzureKvConfigurationOptions
+        {
+            VaultSecrets = null
+        };
+
+        Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
+    }
+
+    [Test]
+    public void ConstructorThrowsForNullValueOfUploadKeyList()
+    {
+        var options = new AzureKvConfigurationOptions
+        {
+            VaultSecrets = null
+        };
+
+        Assert.Throws<ArgumentNullException>(() => new AzureKvConfigurationProvider(options));
+    }
+
+
+    private class ReloadControlKeyVaultProvider : AzureKvConfigurationProvider
+    {
+        private TaskCompletionSource<object> _releaseTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<object> _signalTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ReloadControlKeyVaultProvider(SecretClient secretClient, AzureKvConfigurationOptions options) : base(secretClient, options)
+        {
+        }
+
+        protected override async Task WaitForReload()
+        {
+            _signalTaskCompletionSource.SetResult(null);
+            await _releaseTaskCompletionSource.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
+        }
+
+        public async Task Wait()
+        {
+            await _signalTaskCompletionSource.Task.TimeoutAfter(TimeSpan.FromSeconds(10));
+        }
+
+        public void Release()
+        {
+            if (!_signalTaskCompletionSource.Task.IsCompleted)
+            {
+                throw new InvalidOperationException("Provider is not waiting for reload");
+            }
+
+            var releaseTaskCompletionSource = _releaseTaskCompletionSource;
+            _releaseTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _signalTaskCompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            releaseTaskCompletionSource.SetResult(null);
         }
     }
 }

@@ -1,11 +1,11 @@
+using Azure;
+using Azure.Security.KeyVault.Secrets;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Azure;
-using Azure.Security.KeyVault.Secrets;
-using Microsoft.Extensions.Configuration;
 
 namespace AspNetCore.Azure.Configuration.KvSecrets
 {
@@ -122,6 +122,9 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
             }
         }
 
+        /// <summary>
+        /// Waits for the configured reload interval before reloading secrets.
+        /// </summary>
         protected virtual Task WaitForReload()
         {
             // WaitForReload is only called when the _reloadInterval has a value.

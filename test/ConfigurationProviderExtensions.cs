@@ -1,23 +1,22 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System;
 using Microsoft.Extensions.Configuration;
+using System;
 
-namespace AspNetCore.Azure.Configuration.KvSecrets.Tests
+namespace AspNetCore.Azure.Configuration.KvSecrets.Tests;
+
+public static class ConfigurationProviderExtensions
 {
-    public static class ConfigurationProviderExtensions
+    public static string Get(this IConfigurationProvider provider, string key)
     {
-        public static string Get(this IConfigurationProvider provider, string key)
+        string value;
+
+        if (!provider.TryGet(key, out value))
         {
-            string value;
-
-            if (!provider.TryGet(key, out value))
-            {
-                throw new InvalidOperationException("Key not found");
-            }
-
-            return value;
+            throw new InvalidOperationException("Key not found");
         }
+
+        return value;
     }
 }

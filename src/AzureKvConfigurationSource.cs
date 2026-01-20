@@ -9,6 +9,10 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
     {
         private readonly AzureKvConfigurationOptions _options;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AzureKvConfigurationSource"/> class.
+        /// </summary>
+        /// <param name="options">The configuration options for Azure Key Vault.</param>
         public AzureKvConfigurationSource(AzureKvConfigurationOptions options)
         {
             _options = options;
@@ -21,6 +25,3 @@ namespace AspNetCore.Azure.Configuration.KvSecrets
         }
     }
 }
-
-
-
